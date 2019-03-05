@@ -1,8 +1,23 @@
 import React,{ Component } from 'react';
-import styled from 'styled-components';
+import _ from 'lodash';
+// import styled from 'styled-components';
 
-
-const Root = styled.div``;
+const MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
+const watermarkCallback  = (mutationList, observer) =>{
+  _.forEach(mutationList, (mutationRecord) => {
+    const { type, attributeName } = mutationRecord;
+    if (type === 'attributes' && attributeName === 'style') {
+      observer.disconnect();
+      const { target, oldValue } = mutationRecord;
+      target.setAttribute('style', oldValue);
+      observer.observe(target, watermarkConfig);
+    }
+  });
+}
+const watermarkConfig = {
+  attributes: true,
+  attributeOldValue: true,
+};
 
 function drawPattern(watermarkInfo) {
   const canvas = document.createElement('canvas');
@@ -41,13 +56,19 @@ class Watermark extends Component {
     this.state = {
       singature: '',
     }
+    this.myRef = React.createRef();
+  }
+  initData = async () => {
+    const blob = await drawPattern('开发环境');
+    this.setState({
+      signature: blob,
+    });
+    const om = new MutationObserver(watermarkCallback);
+    om.observe(this.myRef.current, watermarkConfig);
+
   }
   componentDidMount() {
-    drawPattern('开发环境').then((blob) => {
-      this.setState({
-        signature: blob,
-      });
-    });
+    this.initData();
   }
 
   render() {
@@ -57,9 +78,9 @@ class Watermark extends Component {
       backgroundRepeat: 'space repeat',
     };
     return(
-      <Root style={ContainerStyle}>
+      <div style={ContainerStyle} ref={this.myRef}>
         {this.props.children()}
-      </Root>
+      </div>
     );
   }
 }
